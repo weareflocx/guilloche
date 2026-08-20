@@ -1,0 +1,33 @@
+[
+  {
+    "name": "Cauce_1",
+    "patternId": "rings",
+    "params": {
+      "threshold": 0,
+      "bgTexture": false,
+      "density": 255,
+      "amplitude": 0,
+      "frequency": 4,
+      "thickness": 1.7,
+      "contrast": 0.46,
+      "invert": false,
+      "modWidth": true,
+      "cx": 0.4198717948717949,
+      "cy": 0.5150240384615384,
+      "fxOpacity": 1,
+      "blend": "source-over",
+      "srcOpacity": 0,
+      "srcBlur": 40,
+      "srcFilter": "none",
+      "vignette": false,
+      "grain": false,
+      "scanlines": false
+    },
+    "colors": {
+      "mode": "original",
+      "ink": "#383a73",
+      "ink2": "#75d0cd",
+      "bg": "#e6f4f3"
+    }
+  }
+]

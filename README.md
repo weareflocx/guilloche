@@ -54,7 +54,17 @@ Hay un clip de prueba en `public/test.mp4`.
   vista; la configuración y la imagen cargada se restauran desde
   sessionStorage (el video hay que recargarlo).
 
-Para regenerar el artifact: `npm run build:artifact` → `dist/artifact.html`.
+## Publicar en el artifact
+
+`npm run build:artifact` genera `dist/artifact.html`, listo para publicar.
+
+**Antes de republicar, sincroniza los presets compartidos.** Publicar
+reemplaza el documento entero, así que los presets que el equipo haya
+guardado en la versión viva se perderían si no están en la semilla.
+Abre el artifact, copia el contenido del bloque
+`<script id="shared-presets">` y pégalo en `presets.shared.json`; el
+build lo incrusta. No se puede automatizar desde el build porque leer el
+artifact requiere sesión de claude.ai.
 - **Presets**: todos usan la gama cromática del design system de Cauce
   (Ink 900 `#1F2222`, Indigo 700 `#383A73`, Aqua 500 `#75D0CD`, Sky 200
   `#B9E4F0`, Mist 50 `#E6F4F3`), leída de las variables del archivo de

@@ -6,10 +6,21 @@
 // serializar el DOM vivo, se embebe una plantilla de sí misma en base64
 // con dos huecos: __PRESETS__ (el JSON de presets compartidos) y
 // __TPL64__ (la propia plantilla, construcción tipo quine).
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const dist = new URL('../dist/', import.meta.url);
 let html = readFileSync(new URL('index.html', dist), 'utf8');
+
+// Presets compartidos que ya viven en el artifact publicado. Republicar
+// entrega el documento completo, así que sin esta semilla un despliegue
+// desde local borraría los presets que el equipo haya guardado.
+//
+// IMPORTANTE: antes de republicar, copiar aquí el contenido del bloque
+// <script id="shared-presets"> de la versión viva del artifact. No se
+// puede automatizar desde el build (requiere sesión de claude.ai).
+const seedFile = new URL('../presets.shared.json', import.meta.url);
+const seed = existsSync(seedFile) ? readFileSync(seedFile, 'utf8').trim() : '[]';
+const seedJson = JSON.stringify(JSON.parse(seed)).replace(/</g, '\\u003c');
 
 // contenido de página sin esqueleto de documento (el visor pone el suyo)
 let content = html
@@ -55,8 +66,11 @@ ${content}
 const b64 = Buffer.from(tpl, 'utf8').toString('base64');
 // sustituciones ancladas al id del bloque, nunca al token suelto
 const artifact = content
-  .replace(/(id="shared-presets">)__PRESETS__/, (_, a) => a + '[]')
+  .replace(/(id="shared-presets">)__PRESETS__/, (_, a) => a + seedJson)
   .replace(/(id="page-tpl">)__TPL64__/, (_, a) => a + b64);
 
 writeFileSync(new URL('artifact.html', dist), artifact + '\n');
-console.log(`artifact.html listo (${(artifact.length / 1024).toFixed(1)} KB, plantilla ${(b64.length / 1024).toFixed(1)} KB)`);
+const count = JSON.parse(seed).length;
+console.log(
+  `artifact.html listo (${(artifact.length / 1024).toFixed(1)} KB, plantilla ${(b64.length / 1024).toFixed(1)} KB, ${count} preset(s) compartido(s))`
+);
