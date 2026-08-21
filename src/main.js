@@ -70,6 +70,7 @@ function startLoop() {
     if (state.source?.type === 'video') {
       const scrub = document.getElementById('video-scrub');
       if (isFinite(v.duration) && v.duration > 0) scrub.value = v.currentTime / v.duration;
+      updateVideoTime();
     }
   };
   state.rafId = requestAnimationFrame(tick);
@@ -88,6 +89,7 @@ function setImageSource(img) {
   state.source = { el: img, type: 'image', w: img.naturalWidth, h: img.naturalHeight };
   fitCanvas(img.naturalWidth, img.naturalHeight);
   document.getElementById('video-bar').classList.add('hidden');
+  updateStatusSource();
   render();
 }
 
@@ -104,10 +106,37 @@ function setVideoSource(video) {
   video.addEventListener('pause', () => {
     btnPlay.textContent = '▶';
   });
-  video.addEventListener('seeked', () => renderIfStatic());
+  video.addEventListener('seeked', () => {
+    updateVideoTime();
+    renderIfStatic();
+  });
   btnPlay.textContent = '▶';
+  updateStatusSource();
+  updateVideoTime();
   video.play();
   render(); // primer fotograma visible aunque el autoplay esté bloqueado
+}
+
+// Línea de estado: tipo y dimensiones de la fuente activa.
+function updateStatusSource() {
+  const s = state.source;
+  document.getElementById('status-source').textContent = s
+    ? `${s.type === 'video' ? 'Video' : 'Imagen'} · ${s.w}×${s.h}`
+    : '';
+}
+
+function fmtTime(t) {
+  if (!isFinite(t)) return '0:00';
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function updateVideoTime() {
+  const v = state.source?.el;
+  if (state.source?.type !== 'video') return;
+  document.getElementById('video-time').textContent =
+    `${fmtTime(v.currentTime)} / ${fmtTime(v.duration)}`;
 }
 
 function stopVideo() {
@@ -117,6 +146,13 @@ function stopVideo() {
     URL.revokeObjectURL(prev.el.src);
   }
   cancelAnimationFrame(state.rafId);
+}
+
+function togglePlay() {
+  const v = state.source?.el;
+  if (state.source?.type !== 'video') return;
+  if (v.paused) v.play();
+  else v.pause();
 }
 
 function loadFile(file) {
@@ -233,21 +269,21 @@ function updateHistoryUI() {
 
 // ─────────────────────────── UI ───────────────────────────
 
-function buildPatternButtons() {
-  const grid = document.getElementById('pattern-grid');
-  for (const pat of PATTERNS) {
-    const btn = document.createElement('button');
-    btn.className = 'btn' + (pat.id === state.patternId ? ' active' : '');
-    btn.textContent = pat.name;
-    btn.dataset.id = pat.id;
-    btn.addEventListener('click', () => {
-      state.patternId = pat.id;
-      grid.querySelectorAll('.btn').forEach((b) => b.classList.toggle('active', b === btn));
-      renderIfStatic();
-      commitHistory();
-    });
-    grid.appendChild(btn);
+function buildPatternSelect() {
+  const sel = document.getElementById('p-pattern');
+  for (const [i, pat] of PATTERNS.entries()) {
+    const opt = document.createElement('option');
+    opt.value = pat.id;
+    opt.textContent = `${i + 1}. ${pat.name}`;
+    sel.appendChild(opt);
   }
+  sel.value = state.patternId;
+}
+
+function selectPattern(id) {
+  state.patternId = id;
+  document.getElementById('p-pattern').value = id;
+  renderIfStatic();
 }
 
 function renderIfStatic() {
@@ -256,31 +292,69 @@ function renderIfStatic() {
   if (state.source?.type !== 'video' || v.paused || v.ended) render();
 }
 
+// Cada slider tiene su par numérico (n-*): se puede arrastrar o tipear.
+// percent: la UI va en escala -100..100 o 0..100 y el estado en -1..1 / 0..1.
 const SLIDERS = [
-  ['density', 'p-density', 'o-density', (v) => parseInt(v, 10)],
-  ['amplitude', 'p-amplitude', 'o-amplitude', (v) => parseInt(v, 10)],
-  ['frequency', 'p-frequency', 'o-frequency', (v) => parseInt(v, 10)],
-  ['thickness', 'p-thickness', 'o-thickness', (v) => parseFloat(v)],
-  ['contrast', 'p-contrast', 'o-contrast', (v) => parseInt(v, 10)],
-  ['threshold', 'p-threshold', 'o-threshold', (v) => parseInt(v, 10)],
-  ['fxOpacity', 'p-fxopacity', 'o-fxopacity', (v) => parseInt(v, 10)],
-  ['srcOpacity', 'p-srcopacity', 'o-srcopacity', (v) => parseInt(v, 10)],
-  ['srcBlur', 'p-srcblur', 'o-srcblur', (v) => parseInt(v, 10)],
+  { key: 'density', sid: 'p-density', nid: 'n-density', min: 10, max: 300, step: 1, def: 80 },
+  { key: 'amplitude', sid: 'p-amplitude', nid: 'n-amplitude', min: 0, max: 100, step: 1, def: 55 },
+  { key: 'frequency', sid: 'p-frequency', nid: 'n-frequency', min: 1, max: 60, step: 1, def: 18 },
+  { key: 'thickness', sid: 'p-thickness', nid: 'n-thickness', min: 0.3, max: 6, step: 0.1, def: 1.2 },
+  { key: 'contrast', sid: 'p-contrast', nid: 'n-contrast', min: -100, max: 100, step: 1, def: 20, percent: true },
+  { key: 'threshold', sid: 'p-threshold', nid: 'n-threshold', min: 0, max: 60, step: 1, def: 0, percent: true },
+  { key: 'fxOpacity', sid: 'p-fxopacity', nid: 'n-fxopacity', min: 0, max: 100, step: 1, def: 100, percent: true },
+  { key: 'srcOpacity', sid: 'p-srcopacity', nid: 'n-srcopacity', min: 0, max: 100, step: 1, def: 0, percent: true },
+  { key: 'srcBlur', sid: 'p-srcblur', nid: 'n-srcblur', min: 0, max: 40, step: 1, def: 0 },
 ];
 
 // claves que en la UI van en % pero en estado son 0..1
-const PERCENT_KEYS = new Set(['contrast', 'threshold', 'fxOpacity', 'srcOpacity']);
+const PERCENT_KEYS = new Set(SLIDERS.filter((s) => s.percent).map((s) => s.key));
+
+function toUI(s, value) {
+  return s.percent ? Math.round(value * 100) : value;
+}
+
+function fromUI(s, raw) {
+  return s.percent ? raw / 100 : raw;
+}
+
+function setSliderParam(s, uiValue) {
+  const clamped = Math.max(s.min, Math.min(s.max, uiValue));
+  document.getElementById(s.sid).value = clamped;
+  document.getElementById(s.nid).value = clamped;
+  state.params[s.key] = fromUI(s, clamped);
+}
 
 function wireControls() {
-  for (const [key, inputId, outId, parse] of SLIDERS) {
-    const input = document.getElementById(inputId);
-    const out = document.getElementById(outId);
-    input.addEventListener('input', () => {
-      out.textContent = input.value;
-      const raw = parse(input.value);
-      state.params[key] = PERCENT_KEYS.has(key) ? raw / 100 : raw;
+  for (const s of SLIDERS) {
+    const slider = document.getElementById(s.sid);
+    const num = document.getElementById(s.nid);
+    // Doble click vuelve al valor por defecto.
+    for (const el of [slider, num]) {
+      el.addEventListener('dblclick', () => {
+        setSliderParam(s, s.def);
+        renderIfStatic();
+        commitHistory('slider:' + s.key);
+      });
+    }
+    slider.addEventListener('input', () => {
+      num.value = slider.value;
+      state.params[s.key] = fromUI(s, parseFloat(slider.value));
       renderIfStatic();
-      commitHistory(inputId);
+      commitHistory('slider:' + s.key);
+    });
+    num.addEventListener('input', () => {
+      if (num.value === '' || num.value === '-') return; // tipeo a medias
+      setSliderParam(s, parseFloat(num.value));
+      renderIfStatic();
+      commitHistory('slider:' + s.key);
+    });
+    num.addEventListener('change', () => {
+      if (num.value === '' || isNaN(parseFloat(num.value))) {
+        num.value = toUI(s, state.params[s.key]);
+        return;
+      }
+      setSliderParam(s, parseFloat(num.value)); // normaliza fuera de rango
+      renderIfStatic();
     });
   }
   document.getElementById('p-invert').addEventListener('change', (e) => {
@@ -376,12 +450,7 @@ function wireControls() {
   });
 
   // Video
-  document.getElementById('btn-play').addEventListener('click', () => {
-    const v = state.source?.el;
-    if (state.source?.type !== 'video') return;
-    if (v.paused) v.play();
-    else v.pause();
-  });
+  document.getElementById('btn-play').addEventListener('click', togglePlay);
   document.getElementById('video-scrub').addEventListener('input', (e) => {
     const v = state.source?.el;
     if (state.source?.type === 'video' && isFinite(v.duration) && v.duration > 0) {
@@ -579,20 +648,10 @@ const CAUCE_PRESETS = [
 
 function syncUI() {
   const p = state.params;
-  const pairs = [
-    ['p-density', 'o-density', p.density],
-    ['p-amplitude', 'o-amplitude', p.amplitude],
-    ['p-frequency', 'o-frequency', p.frequency],
-    ['p-thickness', 'o-thickness', p.thickness],
-    ['p-contrast', 'o-contrast', Math.round(p.contrast * 100)],
-    ['p-threshold', 'o-threshold', Math.round((p.threshold || 0) * 100)],
-    ['p-fxopacity', 'o-fxopacity', Math.round((p.fxOpacity ?? 1) * 100)],
-    ['p-srcopacity', 'o-srcopacity', Math.round((p.srcOpacity || 0) * 100)],
-    ['p-srcblur', 'o-srcblur', p.srcBlur || 0],
-  ];
-  for (const [inputId, outId, value] of pairs) {
-    document.getElementById(inputId).value = value;
-    document.getElementById(outId).textContent = value;
+  for (const s of SLIDERS) {
+    const v = toUI(s, p[s.key]);
+    document.getElementById(s.sid).value = v;
+    document.getElementById(s.nid).value = v;
   }
   document.getElementById('p-invert').checked = p.invert;
   document.getElementById('p-modwidth').checked = p.modWidth;
@@ -609,9 +668,7 @@ function syncUI() {
   document.getElementById('c-ink').value = state.colors.ink;
   document.getElementById('c-ink2').value = state.colors.ink2;
   document.getElementById('c-bg').value = state.colors.bg;
-  document.querySelectorAll('#pattern-grid .btn').forEach((b) =>
-    b.classList.toggle('active', b.dataset.id === state.patternId)
-  );
+  document.getElementById('p-pattern').value = state.patternId;
 }
 
 // ───────────────────── Presets de usuario ─────────────────────
@@ -694,40 +751,102 @@ function applyUserPreset(preset) {
   commitHistory();
 }
 
-function renderUserPresets() {
-  const row = document.getElementById('user-preset-row');
-  row.innerHTML = '';
-  const entries = [
-    ...sharedPresets.map((p) => ({ preset: p, shared: true })),
-    ...loadLocalPresets().map((p) => ({ preset: p, shared: false })),
+// los presets Cauce no tocan el centro ni las capas elegidas por el usuario
+function applyCaucePreset(preset) {
+  state.patternId = preset.patternId;
+  state.params = {
+    threshold: 0,
+    bgTexture: false,
+    ...preset.params,
+    cx: state.params.cx,
+    cy: state.params.cy,
+    fxOpacity: state.params.fxOpacity,
+    blend: state.params.blend,
+    srcOpacity: state.params.srcOpacity,
+    srcBlur: state.params.srcBlur,
+    srcFilter: state.params.srcFilter,
+    vignette: state.params.vignette,
+    grain: state.params.grain,
+    scanlines: state.params.scanlines,
+  };
+  state.colors = { ...preset.colors };
+  syncUI();
+  renderIfStatic();
+}
+
+// Select único con optgroups: Cauce / Compartidos / Locales.
+// Las claves de opción son "cauce:<nombre>", "shared:<nombre>", "local:<nombre>".
+function renderPresetSelect() {
+  const sel = document.getElementById('preset-select');
+  const previous = sel.value;
+  sel.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Elegir preset…';
+  sel.appendChild(placeholder);
+  const groups = [
+    ['Cauce', CAUCE_PRESETS.map((p) => [`cauce:${p.name}`, p.name])],
+    ['Compartidos', sharedPresets.map((p) => [`shared:${p.name}`, p.name])],
+    ['Locales', loadLocalPresets().map((p) => [`local:${p.name}`, `${p.name} ·`])],
   ];
-  for (const { preset, shared } of entries) {
-    const chip = document.createElement('div');
-    chip.className = 'chip';
-    const btn = document.createElement('button');
-    btn.className = 'btn';
-    btn.textContent = preset.name;
-    btn.title = shared ? 'Preset compartido' : 'Preset local (solo este navegador)';
-    if (!shared) btn.textContent += ' ·';
-    btn.addEventListener('click', () => applyUserPreset(preset));
-    const x = document.createElement('button');
-    x.className = 'chip-x';
-    x.textContent = '×';
-    x.title = 'Borrar preset';
-    x.addEventListener('click', async () => {
-      if (shared) {
-        const next = sharedPresets.filter((p) => p.name !== preset.name);
-        if (await persistShared(next)) return;
-        setShareNote('No se pudo borrar el preset compartido.');
-        renderUserPresets(); // restaura los chips al estado real
-      } else {
-        saveLocalPresets(loadLocalPresets().filter((p) => p.name !== preset.name));
-        renderUserPresets();
-      }
-    });
-    chip.append(btn, x);
-    row.appendChild(chip);
+  for (const [title, items] of groups) {
+    if (!items.length) continue;
+    const og = document.createElement('optgroup');
+    og.label = title;
+    for (const [value, label] of items) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      og.appendChild(opt);
+    }
+    sel.appendChild(og);
   }
+  sel.value = previous && sel.querySelector(`option[value='${CSS.escape(previous)}']`) ? previous : '';
+  updateDeleteButton();
+}
+
+function updateDeleteButton() {
+  const key = document.getElementById('preset-select').value;
+  const deletable = key.startsWith('shared:') || key.startsWith('local:');
+  document.getElementById('btn-delete-preset').disabled = !deletable;
+}
+
+function wirePresetSelect() {
+  const sel = document.getElementById('preset-select');
+  sel.addEventListener('change', () => {
+    const key = sel.value;
+    if (!key) return;
+    const i = key.indexOf(':');
+    const kind = key.slice(0, i);
+    const name = key.slice(i + 1);
+    if (kind === 'cauce') {
+      const preset = CAUCE_PRESETS.find((p) => p.name === name);
+      if (preset) {
+        applyCaucePreset(preset);
+        commitHistory();
+      }
+    } else {
+      const list = kind === 'shared' ? sharedPresets : loadLocalPresets();
+      const preset = list.find((p) => p.name === name);
+      if (preset) applyUserPreset(preset); // ya hace commitHistory
+    }
+  });
+  document.getElementById('btn-delete-preset').addEventListener('click', async () => {
+    const key = sel.value;
+    if (!key.startsWith('shared:') && !key.startsWith('local:')) return;
+    const i = key.indexOf(':');
+    const kind = key.slice(0, i);
+    const name = key.slice(i + 1);
+    if (kind === 'shared') {
+      const next = sharedPresets.filter((p) => p.name !== name);
+      if (await persistShared(next)) return; // la página recarga sin el preset
+      setShareNote('No se pudo borrar el preset compartido.');
+      renderPresetSelect();
+    } else {
+      saveLocalPresets(loadLocalPresets().filter((p) => p.name !== name));
+      renderPresetSelect();
+    }
+  });
 }
 
 async function saveUserPreset() {
@@ -753,7 +872,7 @@ async function saveUserPreset() {
   if (shared) return; // la página recarga con el preset ya compartido
   saveLocalPresets([...loadLocalPresets().filter((p) => p.name !== name), preset]);
   input.value = '';
-  renderUserPresets();
+  renderPresetSelect();
   if (!readOnlyShared && !window.claude?.use) {
     setShareNote('Guardado en este navegador. En la versión publicada se comparte con el equipo.');
   }
@@ -804,7 +923,7 @@ function importPresets(file) {
     const names = new Set(valid.map((p) => p.name));
     const merged = [...loadLocalPresets().filter((p) => !names.has(p.name)), ...valid];
     saveLocalPresets(merged);
-    renderUserPresets();
+    renderPresetSelect();
     setShareNote(`${valid.length} ${valid.length === 1 ? 'preset importado' : 'presets importados'} a este navegador.`);
   });
 }
@@ -854,57 +973,17 @@ function restoreStash() {
   return false;
 }
 
-function buildPresets() {
-  const container = document.getElementById('presets-container');
-  const groups = [{ title: 'Presets Cauce', presets: CAUCE_PRESETS }];
-  for (const { title, presets } of groups) {
-    const group = document.createElement('div');
-    group.className = 'group';
-    const label = document.createElement('label');
-    label.className = 'group-title';
-    label.textContent = title;
-    const row = document.createElement('div');
-    row.className = 'preset-row';
-    for (const preset of presets) {
-      const btn = document.createElement('button');
-      btn.className = 'btn';
-      btn.textContent = preset.name;
-      btn.addEventListener('click', () => {
-        state.patternId = preset.patternId;
-        // los presets no tocan el centro ni las capas elegidas por el usuario
-        state.params = {
-          threshold: 0,
-          bgTexture: false,
-          ...preset.params,
-          cx: state.params.cx,
-          cy: state.params.cy,
-          fxOpacity: state.params.fxOpacity,
-          blend: state.params.blend,
-          srcOpacity: state.params.srcOpacity,
-          srcBlur: state.params.srcBlur,
-          srcFilter: state.params.srcFilter,
-          vignette: state.params.vignette,
-          grain: state.params.grain,
-          scanlines: state.params.scanlines,
-        };
-        state.colors = { ...preset.colors };
-        syncUI();
-        renderIfStatic();
-        commitHistory();
-      });
-      row.appendChild(btn);
-    }
-    group.append(label, row);
-    container.appendChild(group);
-  }
-}
-
 // ─────────────────────────── Init ───────────────────────────
 
-buildPatternButtons();
-buildPresets();
-renderUserPresets();
+buildPatternSelect();
+wirePresetSelect();
+renderPresetSelect();
 wireControls();
+document.getElementById('p-pattern').addEventListener('change', (e) => {
+  selectPattern(e.target.value);
+  commitHistory();
+});
+document.getElementById('btn-play').addEventListener('click', togglePlay);
 document.getElementById('btn-export-png').addEventListener('click', exportPNG);
 document.getElementById('btn-export-svg').addEventListener('click', exportSVG);
 document.getElementById('btn-record').addEventListener('click', toggleRecord);
@@ -921,12 +1000,25 @@ document.getElementById('presets-file-input').addEventListener('change', (e) => 
 document.getElementById('btn-undo').addEventListener('click', undoHistory);
 document.getElementById('btn-redo').addEventListener('click', redoHistory);
 document.addEventListener('keydown', (e) => {
-  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
   const t = e.target;
-  if (t instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-  e.preventDefault();
-  if (e.shiftKey) redoHistory();
-  else undoHistory();
+  const typing = t instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !typing) {
+    e.preventDefault();
+    if (e.shiftKey) redoHistory();
+    else undoHistory();
+    return;
+  }
+  if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === ' ') {
+    e.preventDefault(); // sin scroll de página ni click nativo del botón enfocado
+    togglePlay();
+    return;
+  }
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= PATTERNS.length) {
+    selectPattern(PATTERNS[n - 1].id);
+    commitHistory();
+  }
 });
 history = [snapshot()];
 historyIndex = 0;

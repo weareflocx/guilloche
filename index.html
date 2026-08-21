@@ -16,8 +16,12 @@
   <header class="topbar">
     <div class="brand">◈ Guilloché</div>
     <div class="topbar-actions">
-      <button id="btn-undo" class="btn" title="Deshacer (Ctrl+Z)" disabled>↶</button>
-      <button id="btn-redo" class="btn" title="Rehacer (Ctrl+Shift+Z)" disabled>↷</button>
+      <button id="btn-upload" class="btn">Subir</button>
+      <input type="file" id="file-input" accept="image/*,video/*" hidden />
+      <span class="tb-sep"></span>
+      <button id="btn-undo" class="btn" title="Deshacer (Ctrl+Z)" aria-label="Deshacer" disabled>↶</button>
+      <button id="btn-redo" class="btn" title="Rehacer (Ctrl+Shift+Z)" aria-label="Rehacer" disabled>↷</button>
+      <span class="tb-sep"></span>
       <button id="btn-export-png" class="btn">PNG</button>
       <button id="btn-export-svg" class="btn">SVG</button>
       <button id="btn-record" class="btn">● Grabar</button>
@@ -30,21 +34,17 @@
       <button id="btn-peek" class="btn btn-small peek" title="Mantén pulsado para ver la fuente">👁 Original</button>
       <div class="dropzone hidden" id="dropzone">Suelta una imagen o video</div>
       <div class="video-bar hidden" id="video-bar">
-        <button id="btn-play" class="btn btn-small">⏸</button>
+        <button id="btn-play" class="btn btn-small" aria-label="Reproducir o pausar">⏸</button>
         <input type="range" id="video-scrub" min="0" max="1" step="0.001" value="0" />
+        <span id="video-time" class="mono">0:00</span>
       </div>
     </section>
 
     <aside class="panel">
       <div class="group">
-        <label class="group-title">Fuente</label>
-        <button id="btn-upload" class="btn btn-wide">Subir imagen o video</button>
-        <input type="file" id="file-input" accept="image/*,video/*" hidden />
-      </div>
-
-      <div class="group">
         <label class="group-title">Patrón</label>
-        <div class="pattern-grid" id="pattern-grid"></div>
+        <select id="p-pattern" class="select"></select>
+        <p class="hint">Teclas 1–7 cambian de patrón · espacio reproduce o pausa el video.</p>
       </div>
 
       <div class="group" id="sliders">
@@ -53,32 +53,32 @@
         <div class="control">
           <span>Densidad</span>
           <input type="range" id="p-density" min="10" max="300" step="1" value="80" />
-          <output id="o-density">80</output>
+          <input type="number" id="n-density" class="num-input" min="10" max="300" step="1" value="80" />
         </div>
         <div class="control">
           <span>Amplitud</span>
           <input type="range" id="p-amplitude" min="0" max="100" step="1" value="55" />
-          <output id="o-amplitude">55</output>
+          <input type="number" id="n-amplitude" class="num-input" min="0" max="100" step="1" value="55" />
         </div>
         <div class="control">
           <span>Frecuencia</span>
           <input type="range" id="p-frequency" min="1" max="60" step="1" value="18" />
-          <output id="o-frequency">18</output>
+          <input type="number" id="n-frequency" class="num-input" min="1" max="60" step="1" value="18" />
         </div>
         <div class="control">
           <span>Grosor</span>
           <input type="range" id="p-thickness" min="0.3" max="6" step="0.1" value="1.2" />
-          <output id="o-thickness">1.2</output>
+          <input type="number" id="n-thickness" class="num-input" min="0.3" max="6" step="0.1" value="1.2" />
         </div>
         <div class="control">
           <span>Contraste</span>
           <input type="range" id="p-contrast" min="-100" max="100" step="1" value="20" />
-          <output id="o-contrast">20</output>
+          <input type="number" id="n-contrast" class="num-input" min="-100" max="100" step="1" value="20" />
         </div>
         <div class="control">
           <span>Umbral</span>
           <input type="range" id="p-threshold" min="0" max="60" step="1" value="0" />
-          <output id="o-threshold">0</output>
+          <input type="number" id="n-threshold" class="num-input" min="0" max="60" step="1" value="0" />
         </div>
         <div class="control-row">
           <label class="check"><input type="checkbox" id="p-invert" /> Invertir</label>
@@ -95,7 +95,7 @@
         <div class="control">
           <span>Efecto</span>
           <input type="range" id="p-fxopacity" min="0" max="100" step="1" value="100" />
-          <output id="o-fxopacity">100</output>
+          <input type="number" id="n-fxopacity" class="num-input" min="0" max="100" step="1" value="100" />
         </div>
         <select id="p-blend" class="select">
           <option value="source-over" selected>Fusión: normal</option>
@@ -107,12 +107,12 @@
         <div class="control">
           <span>Original</span>
           <input type="range" id="p-srcopacity" min="0" max="100" step="1" value="0" />
-          <output id="o-srcopacity">0</output>
+          <input type="number" id="n-srcopacity" class="num-input" min="0" max="100" step="1" value="0" />
         </div>
         <div class="control">
           <span>Desenfoque</span>
           <input type="range" id="p-srcblur" min="0" max="40" step="1" value="0" />
-          <output id="o-srcblur">0</output>
+          <input type="number" id="n-srcblur" class="num-input" min="0" max="40" step="1" value="0" />
         </div>
         <div class="preset-row" id="filter-row">
           <button class="btn btn-small active" data-filter="none">Ninguno</button>
@@ -148,24 +148,29 @@
         </div>
       </div>
 
-      <div id="presets-container"></div>
-
       <div class="group">
-        <label class="group-title">Mis presets</label>
+        <label class="group-title">Presets</label>
         <div class="save-row">
           <input id="preset-name" class="text-input" placeholder="Nombre del preset" maxlength="24" />
           <button id="btn-save-preset" class="btn">Guardar</button>
+        </div>
+        <div class="preset-manage">
+          <select id="preset-select" class="select"></select>
+          <button id="btn-delete-preset" class="btn btn-small" title="Borrar el preset seleccionado" aria-label="Borrar preset seleccionado">×</button>
         </div>
         <div class="preset-row">
           <button id="btn-export-presets" class="btn btn-small">↓ Descargar</button>
           <button id="btn-import-presets" class="btn btn-small">↑ Cargar</button>
           <input type="file" id="presets-file-input" accept=".json,application/json" hidden />
         </div>
-        <div class="preset-row" id="user-preset-row"></div>
-        <p class="hint" id="share-note"></p>
       </div>
     </aside>
   </main>
+
+  <footer class="statusbar">
+    <span id="status-source" class="mono"></span>
+    <span id="share-note" class="hint"></span>
+  </footer>
 
   <!-- presets compartidos: el build del artifact sustituye el contenido -->
   <script type="application/json" id="shared-presets">[]</script>
