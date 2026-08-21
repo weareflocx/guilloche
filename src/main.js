@@ -165,6 +165,72 @@ function demoImage() {
   img.onload = () => setImageSource(img);
 }
 
+// ─────────────────────────── Undo/Redo ───────────────────────────
+// Historial de {patternId, params, colors}. Cada cambio de UI hace
+// commit; sliders y pickers de color coalescen ráfagas del mismo
+// control (hasta 600 ms) para que un arrastre sea un solo paso.
+
+const HISTORY_MAX = 60;
+const COALESCE_MS = 600;
+let history = [];
+let historyIndex = -1;
+let historyKey = null;
+let historyTime = 0;
+
+function snapshot() {
+  return {
+    patternId: state.patternId,
+    params: { ...state.params },
+    colors: { ...state.colors },
+  };
+}
+
+function commitHistory(coalesceKey) {
+  const now = Date.now();
+  const canCoalesce =
+    coalesceKey && coalesceKey === historyKey && now - historyTime < COALESCE_MS;
+  if (canCoalesce && historyIndex === history.length - 1) {
+    history[historyIndex] = snapshot();
+  } else {
+    history = history.slice(0, historyIndex + 1);
+    history.push(snapshot());
+    if (history.length > HISTORY_MAX) history.shift();
+    historyIndex = history.length - 1;
+    historyKey = coalesceKey || null;
+  }
+  historyTime = now;
+  updateHistoryUI();
+}
+
+function applyHistoryEntry() {
+  const s = history[historyIndex];
+  state.patternId = s.patternId;
+  state.params = { ...s.params };
+  state.colors = { ...s.colors };
+  syncUI();
+  renderIfStatic();
+  updateHistoryUI();
+}
+
+function undoHistory() {
+  if (historyIndex > 0) {
+    historyIndex--;
+    applyHistoryEntry();
+  }
+}
+
+function redoHistory() {
+  if (historyIndex < history.length - 1) {
+    historyIndex++;
+    applyHistoryEntry();
+  }
+}
+
+function updateHistoryUI() {
+  document.getElementById('btn-undo').disabled = historyIndex <= 0;
+  document.getElementById('btn-redo').disabled = historyIndex >= history.length - 1;
+}
+
 // ─────────────────────────── UI ───────────────────────────
 
 function buildPatternButtons() {
@@ -178,6 +244,7 @@ function buildPatternButtons() {
       state.patternId = pat.id;
       grid.querySelectorAll('.btn').forEach((b) => b.classList.toggle('active', b === btn));
       renderIfStatic();
+      commitHistory();
     });
     grid.appendChild(btn);
   }
@@ -213,19 +280,23 @@ function wireControls() {
       const raw = parse(input.value);
       state.params[key] = PERCENT_KEYS.has(key) ? raw / 100 : raw;
       renderIfStatic();
+      commitHistory(inputId);
     });
   }
   document.getElementById('p-invert').addEventListener('change', (e) => {
     state.params.invert = e.target.checked;
     renderIfStatic();
+    commitHistory();
   });
   document.getElementById('p-modwidth').addEventListener('change', (e) => {
     state.params.modWidth = e.target.checked;
     renderIfStatic();
+    commitHistory();
   });
   document.getElementById('p-bgtexture').addEventListener('change', (e) => {
     state.params.bgTexture = e.target.checked;
     renderIfStatic();
+    commitHistory();
   });
   // Click en el lienzo: fija el centro de los patrones radiales.
   canvas.addEventListener('click', (e) => {
@@ -233,10 +304,12 @@ function wireControls() {
     state.params.cx = (e.clientX - rect.left) / rect.width;
     state.params.cy = (e.clientY - rect.top) / rect.height;
     renderIfStatic();
+    commitHistory();
   });
   document.getElementById('p-blend').addEventListener('change', (e) => {
     state.params.blend = e.target.value;
     renderIfStatic();
+    commitHistory();
   });
   // Filtro de color de la capa original
   const filterRow = document.getElementById('filter-row');
@@ -246,12 +319,14 @@ function wireControls() {
     state.params.srcFilter = btn.dataset.filter;
     filterRow.querySelectorAll('.btn').forEach((b) => b.classList.toggle('active', b === btn));
     renderIfStatic();
+    commitHistory();
   });
   // Acabado
   for (const [id, key] of [['p-vignette', 'vignette'], ['p-grain', 'grain'], ['p-scanlines', 'scanlines']]) {
     document.getElementById(id).addEventListener('change', (e) => {
       state.params[key] = e.target.checked;
       renderIfStatic();
+      commitHistory();
     });
   }
   // Mantener pulsado para ver la fuente sin efecto.
@@ -272,11 +347,13 @@ function wireControls() {
     state.colors.mode = e.target.value;
     document.getElementById('wrap-ink2').classList.toggle('hidden', e.target.value !== 'duo');
     renderIfStatic();
+    commitHistory();
   });
   for (const [id, key] of [['c-ink', 'ink'], ['c-ink2', 'ink2'], ['c-bg', 'bg']]) {
     document.getElementById(id).addEventListener('input', (e) => {
       state.colors[key] = e.target.value;
       renderIfStatic();
+      commitHistory(id);
     });
   }
 
@@ -610,6 +687,7 @@ function applyUserPreset(preset) {
   state.colors = { ...state.colors, ...preset.colors };
   syncUI();
   renderIfStatic();
+  commitHistory();
 }
 
 function renderUserPresets() {
@@ -674,6 +752,56 @@ async function saveUserPreset() {
   if (!readOnlyShared && !window.claude?.use) {
     setShareNote('Guardado en este navegador. En la versión publicada se comparte con el equipo.');
   }
+}
+
+// ─────────── Exportar / importar presets como archivo ───────────
+// Descarga todos los presets (compartidos + locales) en un JSON;
+// cargar fusiona un JSON así por nombre en los presets locales.
+
+function exportPresets() {
+  const byName = new Map();
+  for (const p of sharedPresets) byName.set(p.name, p);
+  for (const p of loadLocalPresets()) byName.set(p.name, p);
+  const payload = { version: 1, presets: [...byName.values()] };
+  download(
+    new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
+    'guilloche-presets.json'
+  );
+}
+
+function importPresets(file) {
+  file.text().then((text) => {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      setShareNote('El archivo no es un JSON válido.');
+      return;
+    }
+    const list = Array.isArray(data) ? data : data?.presets;
+    if (!Array.isArray(list)) {
+      setShareNote('El archivo no contiene presets.');
+      return;
+    }
+    const valid = list.filter(
+      (p) =>
+        p &&
+        typeof p.name === 'string' &&
+        typeof p.patternId === 'string' &&
+        PATTERNS.some((q) => q.id === p.patternId) &&
+        p.params && typeof p.params === 'object' &&
+        p.colors && typeof p.colors === 'object'
+    );
+    if (!valid.length) {
+      setShareNote('No se encontró ningún preset válido en el archivo.');
+      return;
+    }
+    const names = new Set(valid.map((p) => p.name));
+    const merged = [...loadLocalPresets().filter((p) => !names.has(p.name)), ...valid];
+    saveLocalPresets(merged);
+    renderUserPresets();
+    setShareNote(`${valid.length} ${valid.length === 1 ? 'preset importado' : 'presets importados'} a este navegador.`);
+  });
 }
 
 // ─────────── Stash: sobrevivir a la recarga tras publicar ───────────
@@ -757,6 +885,7 @@ function buildPresets() {
         state.colors = { ...preset.colors };
         syncUI();
         renderIfStatic();
+        commitHistory();
       });
       row.appendChild(btn);
     }
@@ -775,6 +904,27 @@ document.getElementById('btn-export-png').addEventListener('click', exportPNG);
 document.getElementById('btn-export-svg').addEventListener('click', exportSVG);
 document.getElementById('btn-record').addEventListener('click', toggleRecord);
 document.getElementById('btn-save-preset').addEventListener('click', saveUserPreset);
+document.getElementById('btn-export-presets').addEventListener('click', exportPresets);
+document.getElementById('btn-import-presets').addEventListener('click', () =>
+  document.getElementById('presets-file-input').click()
+);
+document.getElementById('presets-file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) importPresets(file);
+  e.target.value = '';
+});
+document.getElementById('btn-undo').addEventListener('click', undoHistory);
+document.getElementById('btn-redo').addEventListener('click', redoHistory);
+document.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+  const t = e.target;
+  if (t instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  e.preventDefault();
+  if (e.shiftKey) redoHistory();
+  else undoHistory();
+});
+history = [snapshot()];
+historyIndex = 0;
 document.getElementById('preset-name').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') saveUserPreset();
 });

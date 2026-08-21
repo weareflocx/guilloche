@@ -16,6 +16,8 @@
   <header class="topbar">
     <div class="brand">◈ Guilloché</div>
     <div class="topbar-actions">
+      <button id="btn-undo" class="btn" title="Deshacer (Ctrl+Z)" disabled>↶</button>
+      <button id="btn-redo" class="btn" title="Rehacer (Ctrl+Shift+Z)" disabled>↷</button>
       <button id="btn-export-png" class="btn">PNG</button>
       <button id="btn-export-svg" class="btn">SVG</button>
       <button id="btn-record" class="btn">● Grabar</button>
@@ -153,6 +155,11 @@
         <div class="save-row">
           <input id="preset-name" class="text-input" placeholder="Nombre del preset" maxlength="24" />
           <button id="btn-save-preset" class="btn">Guardar</button>
+        </div>
+        <div class="preset-row">
+          <button id="btn-export-presets" class="btn btn-small">↓ Descargar</button>
+          <button id="btn-import-presets" class="btn btn-small">↑ Cargar</button>
+          <input type="file" id="presets-file-input" accept=".json,application/json" hidden />
         </div>
         <div class="preset-row" id="user-preset-row"></div>
         <p class="hint" id="share-note"></p>
