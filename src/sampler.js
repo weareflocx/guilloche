@@ -34,6 +34,8 @@ export class Sampler {
     return (yi * this.w + xi) * 4;
   }
 
+  // Color interpolado. Se usa solo en el modo "colores originales" del
+  // render; el camino caliente (dark/lum) pasa por _luma, sin arrays.
   rgb(u, v) {
     if (!this.data) return [128, 128, 128];
     const x = u * (this.w - 1);
@@ -52,10 +54,33 @@ export class Sampler {
     return out;
   }
 
+  // Luma Rec.709 de una esquina, sin alocar nada (camino caliente).
+  _cornerLuma(i) {
+    const d = this.data;
+    return (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+  }
+
+  // Bilinear de luma en coords normalizadas. La luma es lineal en el
+  // RGB, así que interpolar luma equivale a la luma del color interpolado.
+  // Los bordes sujetan al píxel más cercano vía _idx (clamp-to-edge).
+  _luma(u, v) {
+    if (!this.data) return 0.5;
+    const x = u * (this.w - 1);
+    const y = v * (this.h - 1);
+    const x0 = Math.floor(x), y0 = Math.floor(y);
+    const fx = x - x0, fy = y - y0;
+    const top =
+      this._cornerLuma(this._idx(x0, y0)) * (1 - fx) +
+      this._cornerLuma(this._idx(x0 + 1, y0)) * fx;
+    const bot =
+      this._cornerLuma(this._idx(x0, y0 + 1)) * (1 - fx) +
+      this._cornerLuma(this._idx(x0 + 1, y0 + 1)) * fx;
+    return top * (1 - fy) + bot * fy;
+  }
+
   // Luminancia 0..1 con contraste e inversión aplicados.
   lum(u, v) {
-    const [r, g, b] = this.rgb(u, v);
-    let l = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    let l = this._luma(u, v);
     if (this.contrast !== 0) {
       const k = Math.tan((this.contrast * 0.99 + 1) * Math.PI / 4);
       l = Math.max(0, Math.min(1, (l - 0.5) * k + 0.5));

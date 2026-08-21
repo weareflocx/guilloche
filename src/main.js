@@ -465,6 +465,10 @@ function exportSVG() {
 let recorder = null;
 
 function toggleRecord() {
+  if (typeof MediaRecorder === 'undefined') {
+    setShareNote('Tu navegador no soporta grabación de canvas (MediaRecorder).');
+    return;
+  }
   const btn = document.getElementById('btn-record');
   if (recorder) {
     recorder.stop();
@@ -715,6 +719,7 @@ function renderUserPresets() {
         const next = sharedPresets.filter((p) => p.name !== preset.name);
         if (await persistShared(next)) return;
         setShareNote('No se pudo borrar el preset compartido.');
+        renderUserPresets(); // restaura los chips al estado real
       } else {
         saveLocalPresets(loadLocalPresets().filter((p) => p.name !== preset.name));
         renderUserPresets();

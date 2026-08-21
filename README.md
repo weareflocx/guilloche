@@ -75,6 +75,6 @@ artifact requiere sesión de claude.ai.
 ## Estructura
 
 - `src/sampler.js` — muestreo de luminancia/color con interpolación bilineal
-- `src/patterns/index.js` — los seis generadores de polilíneas
+- `src/patterns/index.js` — los siete generadores de polilíneas
 - `src/render.js` — render compartido Canvas/SVG con modulación por tramos
 - `src/main.js` — estado, UI, fuentes, presets y exportación
