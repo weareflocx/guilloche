@@ -1087,7 +1087,12 @@ document.getElementById('btn-redo').addEventListener('click', redoHistory);
 document.addEventListener('keydown', (e) => {
   const t = e.target;
   const typing = t instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !typing) {
+  // Solo los campos de texto conservan su deshacer nativo; en sliders,
+  // interruptores, color o desplegables manda el historial (como en CAZ:
+  // tras mover un slider el foco se queda en él y Ctrl+Z no llegaba).
+  const inputType = t instanceof HTMLInputElement ? t.type : '';
+  const textEditing = t instanceof HTMLTextAreaElement || ['text', 'number', 'search'].includes(inputType);
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !textEditing) {
     e.preventDefault();
     if (e.shiftKey) redoHistory();
     else undoHistory();
