@@ -19,7 +19,7 @@ Desde la v0.2 comparte el sistema visual y la paleta de CAZ.
 | Artifact | `npm run build:artifact` → `dist/artifact.html` |
 | En producción | Artifact de claude.ai, con presets compartidos por el equipo |
 
-Verificado el 24/09/2026: build limpio, los siete patrones y los diez
+Verificado el 24/09/2026: build limpio, receta con ida y vuelta exacta, los siete patrones y los diez
 presets de fábrica se aplican sin errores de consola, las gamas, los
 campos hex, deshacer y la escala del PNG funcionan, y la plantilla del
 artifact sigue siendo un punto fijo (republicar conserva los presets).
@@ -83,6 +83,15 @@ biblioteca compartida).
   (`vignette`, `grain`, `scanlines`).
 - `colors.mode` es `ink`, `duo` u `original` (colores de la foto).
 - Descargar/Cargar presets usa `{ "version": 1, "presets": [...] }`.
+- **La receta** es un preset suelto con la marca de formato
+  `"_guilloche": 1` y las claves en orden fijo (diffable). Es lo que se
+  copia al Brand System, se descarga como `.json` y se pega en APLICAR
+  JSON. ↑ Cargar acepta receta suelta, array o colección.
+- **`coercePreset()`** valida toda entrada, como `coerceParams()` en CAZ:
+  patrón conocido obligatorio, números acotados al rango de su slider,
+  booleanos, opciones y colores hex válidos, y lo ausente o inválido al
+  valor de fábrica (no al de la pantalla), para que una receta dé siempre
+  la misma pieza.
 - **No es compatible con la receta de CAZ**, pero el color sí se traduce
   directo: `bg` = `colorFondo`, `ink` = `colorTinta`, `ink2` =
   `colorDeriva`. Es la base natural de una capa de color común.

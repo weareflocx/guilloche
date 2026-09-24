@@ -52,6 +52,11 @@ Hay un clip de prueba en `public/test.mp4`.
   (Tinta), Marca (Bruma), Poza (Poza), Dúo (Vado), Tinta (Tinta), Noche
   (Noche), Lluvia (Marea), Cortina (Contraluz), Espejo (Lima) y Original
   (colores de la foto sobre Noche).
+- **Receta JSON**: el grupo «Receta (JSON versionable)» muestra en JSON la
+  configuración en pantalla. COPIAR la lleva al Brand System, ↓ .json la
+  descarga y APLICAR JSON reconstruye la pieza exacta a partir de una receta
+  pegada (luego GUARDAR la conserva como preset). ↑ Cargar admite también una
+  receta suelta. Toda receta entrante se valida y se acota a rango.
 - **Export**: PNG a ×1, ×2 o ×4, SVG vectorial (fotograma actual, con la capa
   original incrustada si está activa) y grabación WebM del canvas en
   movimiento.

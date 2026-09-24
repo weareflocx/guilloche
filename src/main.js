@@ -37,6 +37,11 @@ const state = {
   peek: false, // mantener pulsado "Ver original"
 };
 
+// Valores de fábrica: rellenan lo que falte en una receta importada, para
+// que la misma receta produzca siempre la misma pieza.
+const DEFAULT_PARAMS = { ...state.params };
+const DEFAULT_COLORS = { ...state.colors };
+
 function currentPattern() {
   return PATTERNS.find((p) => p.id === state.patternId);
 }
@@ -263,6 +268,7 @@ function redoHistory() {
 }
 
 function updateHistoryUI() {
+  refreshReceta();
   document.getElementById('btn-undo').disabled = historyIndex <= 0;
   document.getElementById('btn-redo').disabled = historyIndex >= history.length - 1;
 }
@@ -819,7 +825,10 @@ async function persistShared(list) {
   }
 }
 
+let lastPresetName = '';
+
 function applyUserPreset(preset) {
+  lastPresetName = preset.name || '';
   state.patternId = preset.patternId;
   state.params = { ...state.params, ...preset.params };
   state.colors = { ...state.colors, ...preset.colors };
@@ -830,6 +839,7 @@ function applyUserPreset(preset) {
 
 // los presets Cauce no tocan el centro ni las capas elegidas por el usuario
 function applyCaucePreset(preset) {
+  lastPresetName = preset.name;
   state.patternId = preset.patternId;
   state.params = {
     threshold: 0,
@@ -893,6 +903,8 @@ function wirePresetSelect() {
   sel.addEventListener('change', () => {
     const key = sel.value;
     if (!key) return;
+    // un nombre a medio escribir no debe bautizar la receta del preset elegido
+    document.getElementById('preset-name').value = '';
     const i = key.indexOf(':');
     const kind = key.slice(0, i);
     const name = key.slice(i + 1);
@@ -939,6 +951,7 @@ async function saveUserPreset() {
     params: { ...state.params },
     colors: { ...state.colors },
   };
+  lastPresetName = name; // la receta conserva el nombre aunque se vacíe el campo
   const btn = document.getElementById('btn-save-preset');
   btn.disabled = true;
   btn.textContent = 'Guardando…';
@@ -950,9 +963,150 @@ async function saveUserPreset() {
   saveLocalPresets([...loadLocalPresets().filter((p) => p.name !== name), preset]);
   input.value = '';
   renderPresetSelect();
+  refreshReceta();
   if (!readOnlyShared && !window.claude?.use) {
     setShareNote('Guardado en este navegador. En la versión publicada se comparte con el equipo.');
   }
+}
+
+// ─────────────────────── Receta JSON ───────────────────────
+// Una receta es un preset serializado: el mismo objeto que guardan los
+// presets ({name, patternId, params, colors}) con la marca de formato
+// "_guilloche". Es lo que se copia al Brand System y lo que se importa.
+// Orden de claves fijo para que las recetas sean diffables.
+
+const RECETA_VERSION = 1;
+const PARAM_ORDER = [
+  'density', 'amplitude', 'frequency', 'thickness', 'contrast', 'threshold',
+  'invert', 'modWidth', 'bgTexture', 'cx', 'cy',
+  'fxOpacity', 'blend', 'srcOpacity', 'srcBlur', 'srcFilter',
+  'vignette', 'grain', 'scanlines',
+];
+const BOOL_KEYS = new Set(['invert', 'modWidth', 'bgTexture', 'vignette', 'grain', 'scanlines']);
+const ENUMS = {
+  blend: ['source-over', 'multiply', 'screen', 'overlay', 'difference'],
+  srcFilter: ['none', 'bw', 'sepia', 'warm', 'cool'],
+};
+const COLOR_MODES = ['ink', 'duo', 'original'];
+const HEX = /^#[0-9a-f]{6}$/i;
+
+function recetaName() {
+  return document.getElementById('preset-name').value.trim() || lastPresetName || 'Receta';
+}
+
+function recetaObject() {
+  const params = {};
+  for (const k of PARAM_ORDER) params[k] = state.params[k];
+  const c = state.colors;
+  return {
+    _guilloche: RECETA_VERSION,
+    name: recetaName(),
+    patternId: state.patternId,
+    params,
+    colors: { mode: c.mode, bg: c.bg, ink: c.ink, ink2: c.ink2 },
+  };
+}
+
+function recetaJSON() {
+  return JSON.stringify(recetaObject(), null, 2);
+}
+
+// No pisa lo que el usuario esté escribiendo o pegando en el cuadro.
+function refreshReceta() {
+  const ta = document.getElementById('receta');
+  if (!ta || document.activeElement === ta) return;
+  ta.value = recetaJSON();
+  ta.classList.remove('bad');
+}
+
+// Valida y normaliza un preset/receta de fuera (como coerceParams en CAZ):
+// patrón conocido obligatorio; números acotados a su rango; booleanos,
+// opciones y colores válidos; lo que falte o no valga, al valor de fábrica.
+function coercePreset(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('no es un objeto de receta');
+  if (!PATTERNS.some((p) => p.id === obj.patternId)) {
+    throw new Error(`patrón desconocido «${obj.patternId ?? '—'}»`);
+  }
+  const src = obj.params && typeof obj.params === 'object' ? obj.params : {};
+  const params = {};
+  for (const k of PARAM_ORDER) {
+    const v = src[k];
+    const slider = SLIDERS.find((sl) => sl.key === k);
+    if (slider) {
+      const lo = fromUI(slider, slider.min);
+      const hi = fromUI(slider, slider.max);
+      params[k] = typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : DEFAULT_PARAMS[k];
+    } else if (k === 'cx' || k === 'cy') {
+      params[k] = typeof v === 'number' && isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_PARAMS[k];
+    } else if (BOOL_KEYS.has(k)) {
+      params[k] = typeof v === 'boolean' ? v : DEFAULT_PARAMS[k];
+    } else if (ENUMS[k]) {
+      params[k] = ENUMS[k].includes(v) ? v : DEFAULT_PARAMS[k];
+    }
+  }
+  const sc = obj.colors && typeof obj.colors === 'object' ? obj.colors : {};
+  const colors = { mode: COLOR_MODES.includes(sc.mode) ? sc.mode : DEFAULT_COLORS.mode };
+  for (const k of ['bg', 'ink', 'ink2']) {
+    colors[k] = typeof sc[k] === 'string' && HEX.test(sc[k]) ? sc[k].toLowerCase() : DEFAULT_COLORS[k];
+  }
+  const name = (typeof obj.name === 'string' ? obj.name.trim() : '').slice(0, 40) || 'Receta importada';
+  return { name, patternId: obj.patternId, params, colors };
+}
+
+function slug(text) {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'receta';
+}
+
+function applyReceta() {
+  const ta = document.getElementById('receta');
+  let data;
+  try {
+    data = JSON.parse(ta.value);
+  } catch {
+    ta.classList.add('bad');
+    setShareNote('La receta no es JSON válido: revisa que esté completa, con sus llaves.');
+    return;
+  }
+  if (Array.isArray(data) || Array.isArray(data?.presets)) {
+    ta.classList.add('bad');
+    setShareNote('Esto es una colección de presets: cárgala con ↑ Cargar.');
+    return;
+  }
+  let preset;
+  try {
+    preset = coercePreset(data);
+  } catch (err) {
+    ta.classList.add('bad');
+    setShareNote(`La receta no es válida: ${err.message}.`);
+    return;
+  }
+  ta.classList.remove('bad');
+  document.getElementById('preset-name').value = preset.name;
+  applyUserPreset(preset); // aplica, sincroniza la UI y registra en el historial
+  ta.blur();
+  refreshReceta();
+  setShareNote(`Receta «${preset.name}» aplicada. Pulsa GUARDAR para conservarla como preset.`);
+}
+
+async function copyReceta(btn) {
+  const txt = recetaJSON();
+  const ta = document.getElementById('receta');
+  ta.value = txt;
+  try {
+    await navigator.clipboard.writeText(txt);
+  } catch {
+    // el portapapeles asíncrono puede estar bloqueado dentro del artifact
+    ta.select();
+    document.execCommand('copy');
+  }
+  btn.textContent = 'Copiado ✓';
+  setTimeout(() => (btn.textContent = 'Copiar'), 1200);
+}
+
+function downloadReceta() {
+  const r = recetaObject();
+  download(new Blob([JSON.stringify(r, null, 2) + '\n'], { type: 'application/json' }), `${slug(r.name)}.json`);
 }
 
 // ─────────── Exportar / importar presets como archivo ───────────
@@ -979,20 +1133,26 @@ function importPresets(file) {
       setShareNote('El archivo no es un JSON válido.');
       return;
     }
-    const list = Array.isArray(data) ? data : data?.presets;
+    // colección {version, presets}, array suelto o una receta individual
+    const list = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.presets)
+        ? data.presets
+        : data && typeof data === 'object' && data.patternId
+          ? [data]
+          : null;
     if (!Array.isArray(list)) {
       setShareNote('El archivo no contiene presets.');
       return;
     }
-    const valid = list.filter(
-      (p) =>
-        p &&
-        typeof p.name === 'string' &&
-        typeof p.patternId === 'string' &&
-        PATTERNS.some((q) => q.id === p.patternId) &&
-        p.params && typeof p.params === 'object' &&
-        p.colors && typeof p.colors === 'object'
-    );
+    const valid = [];
+    for (const p of list) {
+      try {
+        valid.push(coercePreset(p));
+      } catch {
+        // preset inválido: se descarta y se informa en el recuento
+      }
+    }
     if (!valid.length) {
       setShareNote('No se encontró ningún preset válido en el archivo.');
       return;
@@ -1001,7 +1161,11 @@ function importPresets(file) {
     const merged = [...loadLocalPresets().filter((p) => !names.has(p.name)), ...valid];
     saveLocalPresets(merged);
     renderPresetSelect();
-    setShareNote(`${valid.length} ${valid.length === 1 ? 'preset importado' : 'presets importados'} a este navegador.`);
+    const skipped = list.length - valid.length;
+    setShareNote(
+      `${valid.length} ${valid.length === 1 ? 'preset importado' : 'presets importados'} a este navegador` +
+        (skipped ? `; ${skipped} descartado${skipped === 1 ? '' : 's'} por no ser válido${skipped === 1 ? '' : 's'}.` : '.')
+    );
   });
 }
 
@@ -1115,6 +1279,12 @@ historyIndex = 0;
 document.getElementById('preset-name').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') saveUserPreset();
 });
+document.getElementById('preset-name').addEventListener('input', refreshReceta);
+document.getElementById('btn-receta-copy').addEventListener('click', (e) => copyReceta(e.currentTarget));
+document.getElementById('btn-receta-apply').addEventListener('click', applyReceta);
+document.getElementById('btn-receta-download').addEventListener('click', downloadReceta);
+document.getElementById('receta').addEventListener('input', (e) => e.target.classList.remove('bad'));
+refreshReceta();
 if (!restoreStash()) demoImage();
 
 // Hook de depuración (inspección desde la consola)

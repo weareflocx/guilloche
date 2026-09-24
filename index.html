@@ -167,6 +167,16 @@
           <input type="file" id="presets-file-input" accept=".json,application/json" hidden />
         </div>
       </div>
+      <div class="group">
+        <label class="group-title">Receta (JSON versionable)</label>
+        <textarea id="receta" class="json" spellcheck="false" aria-label="Receta en JSON"></textarea>
+        <div class="mini-actions">
+          <button id="btn-receta-copy" class="btn btn-small">Copiar</button>
+          <button id="btn-receta-apply" class="btn btn-small">Aplicar JSON</button>
+          <button id="btn-receta-download" class="btn btn-small">↓ .json</button>
+        </div>
+        <p class="hint">Copia la receta al Brand System. Pégala y pulsa APLICAR para reproducir la pieza exacta; luego GUARDAR la conserva como preset.</p>
+      </div>
     </aside>
   </main>
 

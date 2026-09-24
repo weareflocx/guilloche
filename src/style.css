@@ -406,3 +406,21 @@ input[type='color']::-moz-color-swatch { border: none; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ---- receta JSON (como en CAZ) ---- */
+textarea.json {
+  width: 100%;
+  height: 132px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.45;
+  padding: 8px;
+  border: 1px solid var(--tinta);
+  border-radius: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  resize: vertical;
+}
+textarea.json:focus { outline: none; background: var(--lima); }
+textarea.json.bad { border-color: var(--senal); }
+.mini-actions { display: flex; flex-wrap: wrap; gap: 6px; }
