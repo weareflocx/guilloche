@@ -29,5 +29,253 @@
       "ink2": "#75d0cd",
       "bg": "#e6f4f3"
     }
+  },
+  {
+    "name": "Retrato Equipo",
+    "patternId": "rings",
+    "params": {
+      "threshold": 0.04,
+      "bgTexture": true,
+      "density": 197,
+      "amplitude": 2,
+      "frequency": 1,
+      "thickness": 1.5,
+      "contrast": 0.3,
+      "invert": false,
+      "modWidth": true,
+      "cx": 0.2453125,
+      "cy": 0.20625,
+      "fxOpacity": 1,
+      "blend": "source-over",
+      "srcOpacity": 0.5,
+      "srcBlur": 0,
+      "srcFilter": "bw",
+      "vignette": false,
+      "grain": true,
+      "scanlines": false
+    },
+    "colors": {
+      "mode": "ink",
+      "ink": "#383a73",
+      "ink2": "#75d0cd",
+      "bg": "#e6f4f3"
+    }
+  },
+  {
+    "name": "Retrato Equipo V1",
+    "patternId": "rings",
+    "params": {
+      "density": 129,
+      "amplitude": 9,
+      "frequency": 1,
+      "thickness": 2.4,
+      "contrast": 0.22,
+      "invert": false,
+      "modWidth": true,
+      "threshold": 0.04,
+      "bgTexture": false,
+      "cx": 0.1265625,
+      "cy": 0.128125,
+      "fxOpacity": 1,
+      "blend": "source-over",
+      "srcOpacity": 0.5,
+      "srcBlur": 0,
+      "srcFilter": "bw",
+      "vignette": false,
+      "grain": false,
+      "scanlines": false
+    },
+    "colors": {
+      "mode": "ink",
+      "ink": "#383a73",
+      "ink2": "#75d0cd",
+      "bg": "#e6f4f3"
+    }
+  },
+  {
+    "name": "Retrato Equipo V2",
+    "patternId": "rings",
+    "params": {
+      "density": 134,
+      "amplitude": 0,
+      "frequency": 1,
+      "thickness": 2.6,
+      "contrast": 0.14,
+      "invert": false,
+      "modWidth": true,
+      "threshold": 0.01,
+      "bgTexture": false,
+      "cx": 0.1265625,
+      "cy": 0.128125,
+      "fxOpacity": 1,
+      "blend": "source-over",
+      "srcOpacity": 0,
+      "srcBlur": 0,
+      "srcFilter": "bw",
+      "vignette": false,
+      "grain": false,
+      "scanlines": false
+    },
+    "colors": {
+      "mode": "ink",
+      "ink": "#383a73",
+      "ink2": "#75d0cd",
+      "bg": "#f1f6f5"
+    }
+  },
+  {
+    "name": "Foto Anillo V1",
+    "patternId": "rings",
+    "params": {
+      "threshold": 0.12,
+      "bgTexture": false,
+      "density": 279,
+      "amplitude": 0,
+      "frequency": 1,
+      "thickness": 3.3,
+      "contrast": -0.21,
+      "invert": false,
+      "modWidth": true,
+      "cx": 0.650773558368495,
+      "cy": 0.35443037974683544,
+      "fxOpacity": 1,
+      "blend": "source-over",
+      "srcOpacity": 0,
+      "srcBlur": 0,
+      "srcFilter": "none",
+      "vignette": false,
+      "grain": false,
+      "scanlines": false
+    },
+    "colors": {
+      "mode": "original",
+      "ink": "#383a73",
+      "ink2": "#75d0cd",
+      "bg": "#e6f4f3"
+    }
+  },
+  {
+    "name": "Foto Verticales V1",
+    "patternId": "vlines",
+    "params": {
+      "density": 190,
+      "amplitude": 0,
+      "frequency": 1,
+      "thickness": 6,
+      "contrast": -0.28,
+      "invert": false,
+      "modWidth": true,
+      "threshold": 0,
+      "bgTexture": false,
+      "cx": 0.650773558368495,
+      "cy": 0.35443037974683544,
+      "fxOpacity": 1,
+      "blend": "source-over",
+      "srcOpacity": 0,
+      "srcBlur": 0,
+      "srcFilter": "none",
+      "vignette": false,
+      "grain": false,
+      "scanlines": false
+    },
+    "colors": {
+      "mode": "original",
+      "ink": "#383a73",
+      "ink2": "#75d0cd",
+      "bg": "#e6f4f3"
+    }
+  },
+  {
+    "name": "Foto Entrelazado V1",
+    "patternId": "weave",
+    "params": {
+      "density": 300,
+      "amplitude": 1,
+      "frequency": 1,
+      "thickness": 6,
+      "contrast": -0.05,
+      "invert": false,
+      "modWidth": true,
+      "threshold": 0,
+      "bgTexture": false,
+      "cx": 0.650773558368495,
+      "cy": 0.35443037974683544,
+      "fxOpacity": 1,
+      "blend": "source-over",
+      "srcOpacity": 0,
+      "srcBlur": 0,
+      "srcFilter": "none",
+      "vignette": false,
+      "grain": false,
+      "scanlines": false
+    },
+    "colors": {
+      "mode": "original",
+      "ink": "#383a73",
+      "ink2": "#75d0cd",
+      "bg": "#e6f4f3"
+    }
+  },
+  {
+    "name": "Foto Espiral V1",
+    "patternId": "spiral",
+    "params": {
+      "density": 300,
+      "amplitude": 0,
+      "frequency": 1,
+      "thickness": 6,
+      "contrast": 0.42,
+      "invert": false,
+      "modWidth": true,
+      "threshold": 0,
+      "bgTexture": false,
+      "cx": 0.650773558368495,
+      "cy": 0.35443037974683544,
+      "fxOpacity": 1,
+      "blend": "source-over",
+      "srcOpacity": 0,
+      "srcBlur": 0,
+      "srcFilter": "none",
+      "vignette": false,
+      "grain": false,
+      "scanlines": false
+    },
+    "colors": {
+      "mode": "ink",
+      "ink": "#383a73",
+      "ink2": "#75d0cd",
+      "bg": "#e6f4f3"
+    }
+  },
+  {
+    "name": "Foto Tramado V1",
+    "patternId": "hatch",
+    "params": {
+      "density": 233,
+      "amplitude": 0,
+      "frequency": 1,
+      "thickness": 2.8,
+      "contrast": -0.42,
+      "invert": false,
+      "modWidth": true,
+      "threshold": 0,
+      "bgTexture": false,
+      "cx": 0.650773558368495,
+      "cy": 0.35443037974683544,
+      "fxOpacity": 1,
+      "blend": "source-over",
+      "srcOpacity": 1,
+      "srcBlur": 0,
+      "srcFilter": "none",
+      "vignette": false,
+      "grain": false,
+      "scanlines": false
+    },
+    "colors": {
+      "mode": "ink",
+      "ink": "#383a73",
+      "ink2": "#75d0cd",
+      "bg": "#e6f4f3"
+    }
   }
 ]
