@@ -35,10 +35,10 @@ let content = html
   .replace(/<title>[^<]*<\/title>/i, '<title>Guilloché</title>')
   .trim();
 
-// hueco de presets compartidos (el fuente trae [] de semilla)
+// hueco de presets compartidos (el build ya los trae incrustados: se vacían)
 content = content.replace(
-  /(<script type="application\/json" id="shared-presets">)\[\]/,
-  '$1__PRESETS__'
+  /(<script type="application\/json" id="shared-presets">)[\s\S]*?(<\/script>)/,
+  '$1__PRESETS__$2'
 );
 if (!content.includes('__PRESETS__')) {
   throw new Error('No se encontró el bloque #shared-presets en el build');
