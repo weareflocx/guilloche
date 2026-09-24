@@ -3,18 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Guilloché — filtro generativo</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap"
-    rel="stylesheet"
-  />
+  <title>Guilloché · CAUCE</title>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">◈ Guilloché</div>
+    <div class="brand">GUILLOCHÉ<span> · GRABADO CAUCE · v0.2</span></div>
     <div class="topbar-actions">
       <button id="btn-upload" class="btn">Subir</button>
       <input type="file" id="file-input" accept="image/*,video/*" hidden />
@@ -22,8 +16,13 @@
       <button id="btn-undo" class="btn" title="Deshacer (Ctrl+Z)" aria-label="Deshacer" disabled>↶</button>
       <button id="btn-redo" class="btn" title="Rehacer (Ctrl+Shift+Z)" aria-label="Rehacer" disabled>↷</button>
       <span class="tb-sep"></span>
-      <button id="btn-export-png" class="btn">PNG</button>
       <button id="btn-export-svg" class="btn">SVG</button>
+      <button id="btn-export-png" class="btn">PNG</button>
+      <div class="png-scale" id="png-scale" role="group" aria-label="Escala del PNG">
+        <button data-scale="1">1×</button>
+        <button data-scale="2" class="active">2×</button>
+        <button data-scale="4">4×</button>
+      </div>
       <button id="btn-record" class="btn">● Grabar</button>
     </div>
   </header>
@@ -31,8 +30,8 @@
   <main class="layout">
     <section class="stage" id="stage">
       <canvas id="canvas"></canvas>
-      <button id="btn-peek" class="btn btn-small peek" title="Mantén pulsado para ver la fuente">👁 Original</button>
-      <div class="dropzone hidden" id="dropzone">Suelta una imagen o video</div>
+      <button id="btn-peek" class="btn btn-small peek" title="Mantén pulsado para ver la fuente">Ver original</button>
+      <div class="dropzone hidden" id="dropzone"><span>SUELTA UNA IMAGEN O UN VÍDEO</span></div>
       <div class="video-bar hidden" id="video-bar">
         <button id="btn-play" class="btn btn-small" aria-label="Reproducir o pausar">⏸</button>
         <input type="range" id="video-scrub" min="0" max="1" step="0.001" value="0" />
@@ -80,12 +79,10 @@
           <input type="range" id="p-threshold" min="0" max="60" step="1" value="0" />
           <input type="number" id="n-threshold" class="num-input" min="0" max="60" step="1" value="0" />
         </div>
-        <div class="control-row">
-          <label class="check"><input type="checkbox" id="p-invert" /> Invertir</label>
-          <label class="check"><input type="checkbox" id="p-modwidth" checked /> Grosor variable</label>
-        </div>
-        <div class="control-row">
-          <label class="check"><input type="checkbox" id="p-bgtexture" /> Fondo texturizado</label>
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="p-invert" /><span class="lbl">INVERTIR</span><span class="tk"><span class="dot"></span></span></label>
+          <label class="toggle"><input type="checkbox" id="p-modwidth" checked /><span class="lbl">GROSOR VARIABLE</span><span class="tk"><span class="dot"></span></span></label>
+          <label class="toggle"><input type="checkbox" id="p-bgtexture" /><span class="lbl">FONDO TEXTURIZADO</span><span class="tk"><span class="dot"></span></span></label>
         </div>
         <p class="hint">Click en el lienzo: fija el centro de anillos y espiral.</p>
       </div>
@@ -125,12 +122,10 @@
 
       <div class="group">
         <label class="group-title">Acabado</label>
-        <div class="control-row">
-          <label class="check"><input type="checkbox" id="p-vignette" /> Viñeta</label>
-          <label class="check"><input type="checkbox" id="p-grain" /> Grano</label>
-        </div>
-        <div class="control-row">
-          <label class="check"><input type="checkbox" id="p-scanlines" /> Scan lines</label>
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="p-vignette" /><span class="lbl">VIÑETA</span><span class="tk"><span class="dot"></span></span></label>
+          <label class="toggle"><input type="checkbox" id="p-grain" /><span class="lbl">GRANO</span><span class="tk"><span class="dot"></span></span></label>
+          <label class="toggle"><input type="checkbox" id="p-scanlines" /><span class="lbl">SCAN LINES</span><span class="tk"><span class="dot"></span></span></label>
         </div>
       </div>
 
@@ -141,10 +136,18 @@
           <option value="duo">Duotono</option>
           <option value="original">Colores originales</option>
         </select>
+        <div class="gamas" id="gamas" aria-label="Gamas de marca"></div>
         <div class="color-row">
-          <label>Tinta <input type="color" id="c-ink" value="#383a73" /></label>
-          <label id="wrap-ink2" class="hidden">Tinta 2 <input type="color" id="c-ink2" value="#75d0cd" /></label>
-          <label>Fondo <input type="color" id="c-bg" value="#e6f4f3" /></label>
+          <span class="color-name">FONDO</span>
+          <span class="color-ctl"><input type="color" id="c-bg" value="#f0f6f5" aria-label="Color de fondo" /><input type="text" id="h-bg" class="hex-input" maxlength="7" spellcheck="false" aria-label="Hex del fondo" /></span>
+        </div>
+        <div class="color-row">
+          <span class="color-name">TINTA</span>
+          <span class="color-ctl"><input type="color" id="c-ink" value="#262929" aria-label="Color de tinta" /><input type="text" id="h-ink" class="hex-input" maxlength="7" spellcheck="false" aria-label="Hex de la tinta" /></span>
+        </div>
+        <div class="color-row hidden" id="wrap-ink2">
+          <span class="color-name">TINTA 2</span>
+          <span class="color-ctl"><input type="color" id="c-ink2" value="#c2cfcf" aria-label="Segunda tinta" /><input type="text" id="h-ink2" class="hex-input" maxlength="7" spellcheck="false" aria-label="Hex de la segunda tinta" /></span>
         </div>
       </div>
 

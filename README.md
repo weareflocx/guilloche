@@ -37,13 +37,22 @@ Hay un clip de prueba en `public/test.mp4`.
 - **Capas**: opacidad del efecto con modos de fusión (normal,
   multiplicar, trama, superponer, diferencia) y capa de la fuente
   original debajo, con su propia opacidad, desenfoque y filtro de color
-  (B/N, sepia, cálido, frío). El botón «👁 Original» sobre el lienzo
+  (B/N, sepia, cálido, frío). El botón «Ver original» sobre el lienzo
   muestra la fuente sin efecto mientras se mantiene pulsado.
 - **Acabado**: viñeta, grano de película y scan lines sobre el resultado
   (viñeta y scan lines también en el SVG; el grano es raster).
-- **Tipografía**: Geist para la interfaz y Geist Mono para títulos y
-  valores, cargadas de Google Fonts.
-- **Export**: PNG (2x), SVG vectorial (fotograma actual, con la capa
+- **Estilo y color de CAZ**: la interfaz usa el mismo sistema visual que
+  CAZ (papel, tinta, esquinas rectas, etiquetas en versalitas, valores en
+  monoespaciada, sin fuentes externas) y su paleta de marca: tinta
+  `#262929`, papel `#F0F6F5`, lima `#FBFD9D` y bruma `#C2CFCF`.
+- **Gamas**: las 14 gamas de CAZ, copiadas literalmente de
+  `cauce/src/engine/params.ts`. Cada una fija fondo, tinta y tinta 2
+  (la `deriva` de CAZ). Los campos hex admiten cualquier color.
+- **Presets de fábrica**: patrón + parámetros + una gama. Retrato
+  (Tinta), Marca (Bruma), Poza (Poza), Dúo (Vado), Tinta (Tinta), Noche
+  (Noche), Lluvia (Marea), Cortina (Contraluz), Espejo (Lima) y Original
+  (colores de la foto sobre Noche).
+- **Export**: PNG a ×1, ×2 o ×4, SVG vectorial (fotograma actual, con la capa
   original incrustada si está activa) y grabación WebM del canvas en
   movimiento.
 - **Mis presets**: guarda la configuración actual con nombre. En el
@@ -65,12 +74,10 @@ Abre el artifact, copia el contenido del bloque
 `<script id="shared-presets">` y pégalo en `presets.shared.json`; el
 build lo incrusta. No se puede automatizar desde el build porque leer el
 artifact requiere sesión de claude.ai.
-- **Presets**: todos usan la gama cromática del design system de Cauce
-  (Ink 900 `#1F2222`, Indigo 700 `#383A73`, Aqua 500 `#75D0CD`, Sky 200
-  `#B9E4F0`, Mist 50 `#E6F4F3`), leída de las variables del archivo de
-  Figma CAUCE — WORK: Retrato, Marca, Aqua, Dúo, Tinta, Noche, Cielo,
-  Cortina, Espejo y Original. Los colores por defecto de la app también
-  son de la gama.
+
+Para integrar Guilloché con las demás herramientas del ecosistema
+(arquitectura, formato de los presets y decisiones pendientes), ver
+[`docs/INTEGRACION.md`](docs/INTEGRACION.md).
 
 ## Estructura
 

@@ -31,7 +31,7 @@ const state = {
     grain: false,
     scanlines: false,
   },
-  colors: { mode: 'ink', ink: '#383a73', ink2: '#75d0cd', bg: '#e6f4f3' },
+  colors: { mode: 'ink', ink: '#262929', ink2: '#c2cfcf', bg: '#f0f6f5' },
   source: null, // { el, type, w, h }
   rafId: 0,
   peek: false, // mantener pulsado "Ver original"
@@ -423,12 +423,27 @@ function wireControls() {
     renderIfStatic();
     commitHistory();
   });
-  for (const [id, key] of [['c-ink', 'ink'], ['c-ink2', 'ink2'], ['c-bg', 'bg']]) {
-    document.getElementById(id).addEventListener('input', (e) => {
-      state.colors[key] = e.target.value;
+  for (const [key, cid, hid] of COLOR_FIELDS) {
+    const picker = document.getElementById(cid);
+    const hex = document.getElementById(hid);
+    picker.addEventListener('input', () => {
+      state.colors[key] = picker.value.toLowerCase();
+      syncColorUI();
       renderIfStatic();
-      commitHistory(id);
+      commitHistory(cid);
     });
+    // Campo hex: acepta con o sin #; si no es válido se marca y no se aplica.
+    hex.addEventListener('input', () => {
+      const m = hex.value.trim().match(/^#?([0-9a-f]{6})$/i);
+      hex.classList.toggle('bad', !m);
+      if (!m) return;
+      state.colors[key] = '#' + m[1].toLowerCase();
+      picker.value = state.colors[key];
+      document.querySelectorAll('#gamas .gama').forEach((b) => b.classList.remove('active'));
+      renderIfStatic();
+      commitHistory(cid);
+    });
+    hex.addEventListener('blur', syncColorUI);
   }
 
   // Fuente
@@ -491,9 +506,11 @@ async function download(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
+let pngScale = 2;
+
 function exportPNG() {
   if (!state.source) return;
-  const scale = 2;
+  const scale = pngScale;
   const W = canvas.width * scale;
   const H = canvas.height * scale;
   const off = document.createElement('canvas');
@@ -573,78 +590,140 @@ function toggleRecord() {
 
 // ─────────────────────────── Presets ───────────────────────────
 
-// Gama cromática Cauce (variables del design system en Figma)
-const CAUCE = {
-  ink900: '#1f2222',
-  indigo700: '#383a73',
-  aqua500: '#75d0cd',
-  sky200: '#b9e4f0',
-  mist50: '#e6f4f3',
-  white: '#ffffff',
-};
+// Paleta de marca CAUCE, la misma que CAZ (cauce/src/engine/params.ts):
+// tinta #262929 · papel #F0F6F5 · lima #FBFD9D · bruma #C2CFCF. Las gamas
+// se copian literalmente de CAZ; fondo/tinta/deriva equivalen aquí a
+// fondo/tinta/tinta 2. Si cambian en CAZ, hay que cambiarlas aquí.
+const GAMAS = [
+  // --- sobre papel ---
+  { nombre: 'Tinta',    fondo: '#F0F6F5', tinta: '#262929', deriva: '#262929' },
+  { nombre: 'Señal',    fondo: '#F0F6F5', tinta: '#262929', deriva: '#FBFD9D' },
+  { nombre: 'Vado',     fondo: '#F0F6F5', tinta: '#262929', deriva: '#C2CFCF' },
+  { nombre: 'Niebla',   fondo: '#F0F6F5', tinta: '#C2CFCF', deriva: '#C2CFCF' },
+  // --- sobre tinta ---
+  { nombre: 'Noche',    fondo: '#262929', tinta: '#F0F6F5', deriva: '#C2CFCF' },
+  { nombre: 'Espuma',   fondo: '#262929', tinta: '#F0F6F5', deriva: '#FBFD9D' },
+  { nombre: 'Lima',     fondo: '#262929', tinta: '#FBFD9D', deriva: '#FBFD9D' },
+  { nombre: 'Faro',     fondo: '#262929', tinta: '#FBFD9D', deriva: '#C2CFCF' },
+  { nombre: 'Poza',     fondo: '#262929', tinta: '#C2CFCF', deriva: '#F0F6F5' },
+  // --- sobre bruma ---
+  { nombre: 'Bruma',    fondo: '#C2CFCF', tinta: '#262929', deriva: '#F0F6F5' },
+  { nombre: 'Marea',    fondo: '#C2CFCF', tinta: '#262929', deriva: '#FBFD9D' },
+  // --- sobre lima ---
+  { nombre: 'Contraluz', fondo: '#FBFD9D', tinta: '#262929', deriva: '#262929' },
+  { nombre: 'Cal',      fondo: '#FBFD9D', tinta: '#262929', deriva: '#C2CFCF' },
+  { nombre: 'Junco',    fondo: '#FBFD9D', tinta: '#262929', deriva: '#F0F6F5' },
+];
 
+// Colores de una gama en el formato de estado (hex en minúscula, como
+// los devuelve <input type="color">, para poder comparar).
+function gama(nombre) {
+  const g = GAMAS.find((x) => x.nombre === nombre);
+  return { bg: g.fondo.toLowerCase(), ink: g.tinta.toLowerCase(), ink2: g.deriva.toLowerCase() };
+}
+
+// Presets de fábrica: patrón + parámetros + una gama de CAZ.
 const CAUCE_PRESETS = [
   {
     name: 'Retrato',
     patternId: 'rings',
     params: { density: 250, amplitude: 6, frequency: 4, thickness: 3, contrast: 0.3, invert: false, modWidth: true, threshold: 0.12, bgTexture: true },
-    colors: { mode: 'ink', ink: CAUCE.indigo700, ink2: CAUCE.aqua500, bg: CAUCE.mist50 },
+    colors: { mode: 'ink', ...gama('Tinta') },
   },
   {
     name: 'Marca',
     patternId: 'weave',
     params: { density: 90, amplitude: 60, frequency: 22, thickness: 1, contrast: 0.25, invert: false, modWidth: true },
-    colors: { mode: 'ink', ink: CAUCE.indigo700, ink2: CAUCE.aqua500, bg: CAUCE.mist50 },
+    colors: { mode: 'ink', ...gama('Bruma') },
   },
   {
-    name: 'Aqua',
+    name: 'Poza',
     patternId: 'rings',
     params: { density: 90, amplitude: 55, frequency: 12, thickness: 1.2, contrast: 0.2, invert: true, modWidth: true },
-    colors: { mode: 'ink', ink: CAUCE.aqua500, ink2: CAUCE.sky200, bg: CAUCE.ink900 },
+    colors: { mode: 'ink', ...gama('Poza') },
   },
   {
     name: 'Dúo',
     patternId: 'waves',
     params: { density: 70, amplitude: 70, frequency: 14, thickness: 1.8, contrast: 0.35, invert: false, modWidth: true },
-    colors: { mode: 'duo', ink: CAUCE.indigo700, ink2: CAUCE.aqua500, bg: CAUCE.white },
+    colors: { mode: 'duo', ...gama('Vado') },
   },
   {
     name: 'Tinta',
     patternId: 'hatch',
     params: { density: 110, amplitude: 40, frequency: 10, thickness: 0.9, contrast: 0.3, invert: false, modWidth: true },
-    colors: { mode: 'ink', ink: CAUCE.ink900, ink2: CAUCE.indigo700, bg: CAUCE.mist50 },
+    colors: { mode: 'ink', ...gama('Tinta') },
   },
   {
     name: 'Noche',
     patternId: 'spiral',
     params: { density: 100, amplitude: 65, frequency: 30, thickness: 1.4, contrast: 0.3, invert: true, modWidth: true },
-    colors: { mode: 'ink', ink: CAUCE.sky200, ink2: CAUCE.aqua500, bg: CAUCE.indigo700 },
+    colors: { mode: 'ink', ...gama('Noche') },
   },
   {
-    name: 'Cielo',
+    name: 'Lluvia',
     patternId: 'rosettes',
     params: { density: 120, amplitude: 60, frequency: 24, thickness: 1.1, contrast: 0.35, invert: false, modWidth: false },
-    colors: { mode: 'duo', ink: CAUCE.indigo700, ink2: CAUCE.white, bg: CAUCE.sky200 },
+    colors: { mode: 'duo', ...gama('Marea') },
   },
   {
     name: 'Cortina',
     patternId: 'vlines',
     params: { density: 220, amplitude: 10, frequency: 6, thickness: 2.6, contrast: 0.3, invert: false, modWidth: true, threshold: 0.08, bgTexture: false },
-    colors: { mode: 'ink', ink: CAUCE.indigo700, ink2: CAUCE.aqua500, bg: CAUCE.white },
+    colors: { mode: 'ink', ...gama('Contraluz') },
   },
   {
     name: 'Espejo',
     patternId: 'spiral',
     params: { density: 100, amplitude: 65, frequency: 30, thickness: 1.4, contrast: 0.3, invert: true, modWidth: true },
-    colors: { mode: 'ink', ink: CAUCE.aqua500, ink2: CAUCE.sky200, bg: CAUCE.ink900 },
+    colors: { mode: 'ink', ...gama('Lima') },
   },
   {
     name: 'Original',
     patternId: 'rosettes',
     params: { density: 120, amplitude: 60, frequency: 24, thickness: 1.1, contrast: 0.35, invert: false, modWidth: false },
-    colors: { mode: 'original', ink: CAUCE.indigo700, ink2: CAUCE.aqua500, bg: CAUCE.ink900 },
+    colors: { mode: 'original', ...gama('Noche') },
   },
 ];
+
+// Muestras de gama, dibujadas igual que en CAZ.
+function buildGamas() {
+  const wrap = document.getElementById('gamas');
+  for (const g of GAMAS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'gama';
+    b.dataset.gama = g.nombre;
+    b.title = `${g.nombre} · ${g.tinta} sobre ${g.fondo}`;
+    b.innerHTML =
+      `<span class="gama-swatch" style="background:linear-gradient(135deg, ${g.tinta} 0 46%, ${g.deriva} 46% 54%, ${g.fondo} 54% 100%)"></span>` +
+      `<span class="gama-name">${g.nombre}</span>`;
+    b.addEventListener('click', () => {
+      Object.assign(state.colors, gama(g.nombre));
+      syncColorUI();
+      renderIfStatic();
+      commitHistory();
+    });
+    wrap.appendChild(b);
+  }
+}
+
+const COLOR_FIELDS = [['bg', 'c-bg', 'h-bg'], ['ink', 'c-ink', 'h-ink'], ['ink2', 'c-ink2', 'h-ink2']];
+
+// Pickers, campos hex y gama activa (la que coincide con los tres colores).
+function syncColorUI() {
+  const c = state.colors;
+  for (const [key, cid, hid] of COLOR_FIELDS) {
+    document.getElementById(cid).value = c[key];
+    const hex = document.getElementById(hid);
+    hex.value = c[key].toUpperCase();
+    hex.classList.remove('bad');
+  }
+  document.querySelectorAll('#gamas .gama').forEach((b) => {
+    const g = gama(b.dataset.gama);
+    b.classList.toggle('active', g.bg === c.bg && g.ink === c.ink && g.ink2 === c.ink2);
+  });
+}
 
 function syncUI() {
   const p = state.params;
@@ -665,9 +744,7 @@ function syncUI() {
   );
   document.getElementById('p-colormode').value = state.colors.mode;
   document.getElementById('wrap-ink2').classList.toggle('hidden', state.colors.mode !== 'duo');
-  document.getElementById('c-ink').value = state.colors.ink;
-  document.getElementById('c-ink2').value = state.colors.ink2;
-  document.getElementById('c-bg').value = state.colors.bg;
+  syncColorUI();
   document.getElementById('p-pattern').value = state.patternId;
 }
 
@@ -976,6 +1053,8 @@ function restoreStash() {
 // ─────────────────────────── Init ───────────────────────────
 
 buildPatternSelect();
+buildGamas();
+syncColorUI();
 wirePresetSelect();
 renderPresetSelect();
 wireControls();
@@ -985,6 +1064,12 @@ document.getElementById('p-pattern').addEventListener('change', (e) => {
 });
 document.getElementById('btn-play').addEventListener('click', togglePlay);
 document.getElementById('btn-export-png').addEventListener('click', exportPNG);
+document.getElementById('png-scale').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-scale]');
+  if (!b) return;
+  pngScale = parseInt(b.dataset.scale, 10);
+  document.querySelectorAll('#png-scale button').forEach((x) => x.classList.toggle('active', x === b));
+});
 document.getElementById('btn-export-svg').addEventListener('click', exportSVG);
 document.getElementById('btn-record').addEventListener('click', toggleRecord);
 document.getElementById('btn-save-preset').addEventListener('click', saveUserPreset);
